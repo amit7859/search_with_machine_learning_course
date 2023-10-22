@@ -2,7 +2,14 @@ import xgboost as xgb
 from xgboost import plot_importance, plot_tree
 
 _LTR_FEATURES = [
-    'name_match'
+    'name_match',
+    'name_phrase_match',
+    'customer_review_avg',
+    'customer_review_count',
+    'sales_rank_short_term',
+    "artist_name_phrase_match",
+    "short_description_phrase_match",
+    "long_description_phrase_match"
 ]
 
 
@@ -103,7 +110,7 @@ def create_rescore_ltr_query(user_query: str, query_obj, click_prior_query: str,
                     },
                     "model": ltr_model_name,
                     "store": ltr_store_name,
-                    "active_features": ["name_match"]
+                    "active_features": _LTR_FEATURES
                 }
             },
             "query_weight": main_query_weight,
@@ -123,7 +130,7 @@ and extract the features into a data frame.
 def extract_logged_features(hits, query_id):
     import numpy as np
     import pandas as pd
-    
+
     feature_results = {}
     feature_results["doc_id"] = []  # capture the doc id so we can join later
     feature_results["query_id"] = []  # ^^^
