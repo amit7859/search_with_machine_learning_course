@@ -9,7 +9,7 @@ _LTR_FEATURES = [
     'sales_rank_short_term',
     "artist_name_phrase_match",
     "short_description_phrase_match",
-    "long_description_phrase_match"
+    "long_description_phrase_match",
 ]
 
 

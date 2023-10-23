@@ -23,7 +23,7 @@
           "match_phrase": {
             "name": {
               "query": "{{keywords}}",
-              "slop": 6
+              "slop": 1
             }
           }
         }
@@ -116,7 +116,7 @@
           "match_phrase": {
             "artistName": {
               "query": "{{keywords}}", 
-              "slop": 6
+              "slop": 0
             }
           }
         }
