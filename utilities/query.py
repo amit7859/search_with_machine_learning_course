@@ -51,6 +51,7 @@ def create_prior_queries(doc_ids, doc_id_weights,
 # Hardcoded query here.  Better to use search templates or other query config.
 def create_query(user_query, click_prior_query, filters, sort="_score", sortDir="desc", size=10, source=None, synonyms=False):
     name_field = "name" if synonyms == False else "name.synonyms"
+    print(f"Name field is {name_field}")
     query_obj = {
         'size': size,
         "sort": [
@@ -244,13 +245,17 @@ if __name__ == "__main__":
     index_name = args.index
     synonyms = args.synonyms
     query_prompt = "\nEnter your query (type 'Exit' to exit or hit ctrl-c):"
-    print(query_prompt)
-    for line in fileinput.input():
-        query = line.rstrip()
-        if query == "Exit":
-            break
-        search(client=opensearch, user_query=query, index=index_name,  synonyms=synonyms)
+    # print(query_prompt)
+    # for line in fileinput.input():
+    #    query = line.rstrip()
+    #    if query == "Exit":
+    #        break
+    #    search(client=opensearch, user_query=query, index=index_name,  synonyms=synonyms)
+    #    print(query_prompt)
 
-        print(query_prompt)
+    query = input(query_prompt)
+    while query != "Exit":
+        search(client=opensearch, user_query=query, index=index_name, synonyms=synonyms)
+        query = input(query_prompt)
 
     
