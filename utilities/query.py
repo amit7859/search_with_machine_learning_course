@@ -12,6 +12,10 @@ import pandas as pd
 import fileinput
 import logging
 
+import nltk
+
+import fasttext
+import re 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -188,11 +192,40 @@ def create_query(user_query, click_prior_query, filters, sort="_score", sortDir=
     return query_obj
 
 
+def map_query_text(text):
+    stemmer = nltk.stem.PorterStemmer()
+    text = str.lower(text)
+    words = re.sub(r'[^a-zA-Z0-9]', ' ', text).split()
+    return ' '.join(stemmer.stem(word) for word in words)
+
+
 def search(client, user_query, index="bbuy_products", sort="_score", sortDir="desc", synonyms=False):
     #### W3: classify the query
     #### W3: create filters and boosts
     # Note: you may also want to modify the `create_query` method above
-    query_obj = create_query(user_query, click_prior_query=None, filters=None, sort=sort, sortDir=sortDir, source=["name", "shortDescription"], synonyms=synonyms)
+
+    model_path = '/workspace/search_with_machine_learning_course/week3/model_query_classification.bin'
+    model = fasttext.load_model(model_path)
+
+    threshold = 0.5
+
+    labels, probs = model.predict(map_query_text(user_query))
+    labels = [x.replace("__label__", "") for x in labels]
+
+    sum_probs = 0
+    categories = []
+
+    for idx, prob in enumerate(probs):
+        sum_probs += prob
+        categories.append(labels[idx])
+        if (sum_probs >= threshold):
+            break;
+
+    filters = []
+    if (sum_probs >= threshold):
+        filters = [{"terms": {"categoryPathIds": categories}}]
+
+    query_obj = create_query(user_query, click_prior_query=None, filters=filters, sort=sort, sortDir=sortDir, source=["name", "shortDescription", "categoryPathIds"], synonyms=synonyms)
     logging.info(query_obj)
     response = client.search(query_obj, index=index)
     if response and response['hits']['hits'] and len(response['hits']['hits']) > 0:
@@ -251,7 +284,11 @@ if __name__ == "__main__":
     #    if query == "Exit":
     #        break
     #    search(client=opensearch, user_query=query, index=index_name,  synonyms=synonyms)
+
     #    print(query_prompt)
+
+    print(f"Synonyms is: {synonyms}")
+    print(f"Index name is: {index_name}")
 
     query = input(query_prompt)
     while query != "Exit":
