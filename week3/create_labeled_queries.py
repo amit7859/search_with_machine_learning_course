@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 import csv
 
+import re 
+
 # Useful if you want to perform stemming.
 import nltk
 stemmer = nltk.stem.PorterStemmer()
@@ -49,8 +51,40 @@ queries_df = pd.read_csv(queries_file_name)[['category', 'query']]
 queries_df = queries_df[queries_df['category'].isin(categories)]
 
 # IMPLEMENT ME: Convert queries to lowercase, and optionally implement other normalization, like stemming.
+def map_query_text(text):
+    text = str.lower(text)
+    words = re.sub(r'[^a-zA-Z0-9]', ' ', text).split()
+    return ' '.join(stemmer.stem(word) for word in words)
+
+queries_df['query'] = queries_df['query'].apply(map_query_text)
 
 # IMPLEMENT ME: Roll up categories to ancestors to satisfy the minimum number of queries per category.
+query_counts_df = queries_df['category'].value_counts().reset_index()
+query_counts_df.columns = ['category', 'counts']
+
+# combined_df = queries_df.merge(query_counts_df, on='category', how='left').merge(parents_df, on='category', how='left')
+
+while min(query_counts_df['counts']) < min_queries:
+    combined_df = queries_df.merge(query_counts_df, on='category', how='left').merge(parents_df, on='category', how='left')
+
+    def select_category(row):
+        if row['counts'] < min_queries:
+            return row['parent']
+        return row['category']
+        
+    combined_df['category'] = combined_df.apply(select_category, axis=1)
+
+    queries_df = combined_df[['category', 'query']]
+    query_counts_df = queries_df['category'].value_counts().reset_index()
+    query_counts_df.columns = ['category', 'counts']
+
+
+print("Category(-ies) with minimum query counts:")
+print(query_counts_df[query_counts_df.counts == query_counts_df.counts.min()])
+
+unqiue_categories = len(pd.unique(query_counts_df['category']))
+print(f"Number of unqiue categories: {unqiue_categories}")
+
 
 # Create labels in fastText format.
 queries_df['label'] = '__label__' + queries_df['category']
