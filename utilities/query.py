@@ -223,7 +223,11 @@ def search(client, user_query, index="bbuy_products", sort="_score", sortDir="de
 
     filters = []
     if (sum_probs >= threshold):
+        print(f"The category Ids found for ({user_query}) are ({categories})")
         filters = [{"terms": {"categoryPathIds": categories}}]
+    else:
+        print(f"No categories found for ({user_query})")
+
 
     query_obj = create_query(user_query, click_prior_query=None, filters=filters, sort=sort, sortDir=sortDir, source=["name", "shortDescription", "categoryPathIds"], synonyms=synonyms)
     logging.info(query_obj)
