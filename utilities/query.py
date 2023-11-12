@@ -17,9 +17,15 @@ import nltk
 import fasttext
 import re 
 
+from sentence_transformers import SentenceTransformer
+
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logging.basicConfig(format='%(levelname)s:%(message)s')
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
 
 # expects clicks and impressions to be in the row
 def create_prior_queries_from_group(
@@ -198,8 +204,28 @@ def map_query_text(text):
     words = re.sub(r'[^a-zA-Z0-9]', ' ', text).split()
     return ' '.join(stemmer.stem(word) for word in words)
 
+def create_vector_query(user_query, size=10, source=None):
+    print("create_vector_query called!")
 
-def search(client, user_query, index="bbuy_products", sort="_score", sortDir="desc", synonyms=False):
+    embeddings = model.encode([user_query])
+    query = {
+        "size": size,
+        "query": {
+            "knn": {
+                "embedding": {
+                    "vector": embeddings[0],
+                    "k": size
+                }
+            }
+        }
+    }
+    if source is not None:  # otherwise use the default and retrieve all source
+        query_obj["_source"] = source
+    
+    return query
+
+
+def search(client, user_query, index="bbuy_products", sort="_score", sortDir="desc", synonyms=False, vector_search=False):
     #### W3: classify the query
     #### W3: create filters and boosts
     # Note: you may also want to modify the `create_query` method above
@@ -228,8 +254,11 @@ def search(client, user_query, index="bbuy_products", sort="_score", sortDir="de
     else:
         print(f"No categories found for ({user_query})")
 
+    if vector_search == False:
+        query_obj = create_query(user_query, click_prior_query=None, filters=filters, sort=sort, sortDir=sortDir, source=["name", "shortDescription", "categoryPathIds"], synonyms=synonyms)
+    else:
+        query_obj = create_vector_query(user_query)
 
-    query_obj = create_query(user_query, click_prior_query=None, filters=filters, sort=sort, sortDir=sortDir, source=["name", "shortDescription", "categoryPathIds"], synonyms=synonyms)
     logging.info(query_obj)
     response = client.search(query_obj, index=index)
     if response and response['hits']['hits'] and len(response['hits']['hits']) > 0:
@@ -253,6 +282,8 @@ if __name__ == "__main__":
                          help='The OpenSearch admin.  If this is set, the program will prompt for password too. If not set, use default of admin/admin')
     general.add_argument('--synonyms', 
                         type=bool, default=False, help='Use synonyms.')
+    general.add_argument('--vector', default=False, type=bool,
+                         help='Use vector search instead of inverted index search.')     
 
     args = parser.parse_args()
 
@@ -294,9 +325,13 @@ if __name__ == "__main__":
     print(f"Synonyms is: {synonyms}")
     print(f"Index name is: {index_name}")
 
+    vector_search = args.vector
+    print(f"Vector search is: {vector_search}")
+
+
     query = input(query_prompt)
     while query != "Exit":
-        search(client=opensearch, user_query=query, index=index_name, synonyms=synonyms)
+        search(client=opensearch, user_query=query, index=index_name, synonyms=synonyms, vector_search=vector_search)
         query = input(query_prompt)
 
     
